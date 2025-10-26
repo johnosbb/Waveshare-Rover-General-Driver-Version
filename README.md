@@ -12,6 +12,8 @@ Main Changes from Waveshare Demo Version
 
 ## General Driver Board
 
+<img width="572" height="422" alt="image" src="https://github.com/user-attachments/assets/8f4d400b-3293-4f24-b9ae-86671ec0ad97" />
+
 
 <img width="818" height="422" alt="image" src="https://github.com/user-attachments/assets/a7adb55c-7ae2-4432-b59f-fcfe7c97e77f" />
 
