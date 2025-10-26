@@ -92,6 +92,50 @@ This repository organizes firmware under `WAVE_ROVER_V0.95/` with the sketch `WA
 - `WAVE_ROVER_V0.95/json_cmd.h`: Command and feedback IDs with inline JSON examples.
 - `WAVE_ROVER_V0.95/uart_ctrl.h`: Central JSON dispatcher for all commands from Serial and the `/js` endpoint (drive base, PID, OLED, IMU, Wi‑Fi, ESP‑NOW, missions, arm, gimbal, etc.).
 
+## Connectivity
+
+Default ESP32 GPIO usage on the General Driver board (as used by this firmware):
+
+| GPIO | Define | Default role | Interface | Connector / Silkscreen | Reuse notes |
+|---|---|---|---|---|---|
+| 18 | S_RXD | Bus-servo RX (Serial1) | UART | Bus-servo headers (D/V/G, groups A/B) | Free if robotic arm/gimbal/bus-servo disabled |
+| 19 | S_TXD | Bus-servo TX (Serial1) | UART | Bus-servo headers (D/V/G, groups A/B) | Free if robotic arm/gimbal/bus-servo disabled |
+| 32 | S_SDA | I2C SDA | I2C | IIC JST (SDA/SCL/GND/3V3), 40-pin header | In use if IMU/I2C needed |
+| 33 | S_SCL | I2C SCL | I2C | IIC JST, 40-pin header | In use if IMU/I2C needed |
+| 25 | PWMA  | Motor A PWM | PWM | Motor A block (MAx) | In use with motors |
+| 26 | PWMB  | Motor B PWM | PWM | Motor B block (MBx) | In use with motors |
+| 21 | AIN1  | Motor A dir 1 | GPIO | Motor A block (MAx) | In use with motors |
+| 17 | AIN2  | Motor A dir 2 | GPIO | Motor A block (MAx) | In use with motors |
+| 22 | BIN1  | Motor B dir 1 | GPIO | Motor B block (MBx) | In use with motors |
+| 23 | BIN2  | Motor B dir 2 | GPIO | Motor B block (MBx) | In use with motors |
+| 35 | AENCA | Encoder A ch | Input | Encoder A (ACx) | In use (encoders) |
+| 34 | AENCB | Encoder A ch | Input | Encoder A (ACx) | In use (encoders) |
+| 27 | BENCA | Encoder B ch | Input | Encoder B (BCx) | In use (encoders); free if encoders disabled |
+| 16 | BENCB | Encoder B ch | Input | Encoder B (BCx) | In use (encoders); free if encoders disabled |
+| 4  | IO4_PIN | LED/aux PWM | GPIO/PWM | Center Dupont strip (IO4) | Good Serial2 RX if LEDs unused |
+| 5  | IO5_PIN | LED/aux PWM | GPIO/PWM | Center Dupont strip (IO5) | Good Serial2 TX if LEDs unused |
+
+Notes
+- LiDAR USB and 4-pin LiDAR header connect to the on-board CP2102N USB-UART bridge (not the ESP32). Header pins are CP_TX/CP_RX/GND/5V.
+- 40-pin expansion header provides 5 V power, GND, I2C, and a host UART for Jetson/RPi-style use.
+
+### Build Flags (config.h)
+
+New compile-time toggles for connectivity:
+
+- `ENABLE_ROBOTIC_ARM` (default 0): include/exclude RoArm-M2 code.
+- `ENABLE_ENCODERS` (default 1): when 0, skips encoder init/reads and frees GPIO27/GPIO16.
+- `ENABLE_LEDS` (default 1): enable LED PWM on IO4/IO5. If `ENABLE_USER_UART=1` and pins overlap, conflicting LED pins are auto-disabled at runtime.
+- `ENABLE_USER_UART` (default 0): when 1, initializes `Serial2` with the pins/baud below.
+  - `USER_UART_RX_PIN` (default 4), `USER_UART_TX_PIN` (default 5), `USER_UART_BAUD` (default 115200).
+
+Example Arduino CLI build flags:
+
+```
+arduino-cli compile --fqbn esp32:esp32:esp32 WAVE_ROVER_V0.95 \
+  --build-properties build.extra_flags="-DENABLE_ROBOTIC_ARM=0 -DENABLE_USER_UART=1 -DUSER_UART_RX_PIN=4 -DUSER_UART_TX_PIN=5 -DENABLE_ENCODERS=1"
+```
+
 ### Hardware Docs
 - `Resources/general_driver_board_schematic.png`: Board reference schematic.
 

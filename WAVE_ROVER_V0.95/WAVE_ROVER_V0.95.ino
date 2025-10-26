@@ -234,9 +234,16 @@ void setup() {
 
   updateOledWifiInfo();
 
+#if ENABLE_ENCODERS
   initEncoders();
+#endif
 
   pidControllerInit();
+
+#if ENABLE_USER_UART
+  Serial2.begin(USER_UART_BAUD, SERIAL_8N1, USER_UART_RX_PIN, USER_UART_TX_PIN);
+  if (InfoPrint == 1) { Serial.println("User UART (Serial2) initialized."); }
+#endif
 
   screenLine_2 = String("MAC:") + WiFi.macAddress();
   oled_update();
@@ -268,6 +275,7 @@ void loop() {
     runNewJsonCmd = false;
   }
 
+  #if ENABLE_ENCODERS
   getLeftSpeed();
 
   LeftPidControllerCompute();
@@ -275,6 +283,7 @@ void loop() {
   getRightSpeed();
   
   RightPidControllerCompute();
+  #endif
   
   oledInfoUpdate();
 
