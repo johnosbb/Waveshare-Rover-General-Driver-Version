@@ -100,6 +100,9 @@ const char index_html[] PROGMEM = R"rawliteral(
         border-radius: 4px;
         color: rgba(255,255,255,0.5);
     }
+    .status-bar { display:flex; gap: 24px; justify-content: space-between; padding: 10px 20px; flex-wrap: wrap; }
+    .status-bar > div { flex: 1 1 220px; text-align: center; }
+    .status-bar .sma-num { display:block; }
     .big-num{font-size: 3em;}
     .mid-num{font-size: 2em;}
     .sma-num{font-size: 1.2em;}
@@ -253,6 +256,22 @@ const char index_html[] PROGMEM = R"rawliteral(
             <div>
                 <h2 class="h2-tt" id="deviceInfo">Control Panel</h2>
             </div>
+            <!-- Full-width status bar -->
+            <div class="info-box status-bar">
+                <div>
+                    <span class="num-color sma-num" id="SSID">unknown</span>
+                    <span>SSID</span>
+                </div>
+                <div>
+                    <span class="num-color sma-num" id="IP">0.0.0.0</span>
+                    <span>IP</span>
+                </div>
+                <div>
+                    <span class="num-color sma-num" id="MAC">--:--:--:--:--:--</span>
+                    <span>MAC</span>
+                </div>
+            </div>
+
             <div class="for-move">
                 <div class="for-move-a">
                     <div class="info-device-box">
@@ -295,18 +314,7 @@ const char index_html[] PROGMEM = R"rawliteral(
                             </div>
                         </div>
                     </div>
-                    <div class="info-device-box">
-                        <div class="info-box num-box-sma">
-                            <div>
-                                <span class="num-color sma-num" id="IP">192.168.10.67</span>
-                                <span id="IPn">IP</span>
-                            </div>
-                            <div>
-                                <span class="num-color sma-num" id="MAC">44:17:93:EE:F8:F8</span>
-                                <span id="MACn">MAC</span>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- status moved to full-width bar above -->
                 </div>
                 <div class="for-move-b controlor">
                     <div class="controlor-c">
@@ -740,6 +748,9 @@ const char index_html[] PROGMEM = R"rawliteral(
                 document.getElementById("IP").innerHTML = jsonResponse.ip;
                 document.getElementById("MAC").innerHTML = jsonResponse.mac;
                 document.getElementById("RSSI").innerHTML = jsonResponse.rssi;
+                if (jsonResponse.hasOwnProperty('sta_ssid')) {
+                    document.getElementById("SSID").innerHTML = jsonResponse.sta_ssid;
+                }
 
                 // Hide/show gimbal controls based on device hints
                 var gimbalEnabled = (jsonResponse.gimbal === true || jsonResponse.gimbal === 1);

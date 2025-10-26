@@ -441,13 +441,23 @@ void jsonCmdReceiveHandler(){
 	case CMD_WIFI_CONFIG_CREATE_BY_STATUS: 
 												createWifiConfigFileByStatus();break;
 	case CMD_WIFI_CONFIG_CREATE_BY_INPUT: 
-												createWifiConfigFileByInput(
-												jsonCmdReceive["mode"],
-												jsonCmdReceive["ap_ssid"],
-												jsonCmdReceive["ap_password"],
-												jsonCmdReceive["sta_ssid"],
-												jsonCmdReceive["sta_password"]
-												);break;
+												if (jsonCmdReceive.containsKey("sta_list")) {
+													createWifiConfigFileByInputList(
+														jsonCmdReceive["mode"],
+														jsonCmdReceive["ap_ssid"],
+														jsonCmdReceive["ap_password"],
+														jsonCmdReceive["sta_list"]
+													);
+												} else {
+													createWifiConfigFileByInput(
+														jsonCmdReceive["mode"],
+														jsonCmdReceive["ap_ssid"],
+														jsonCmdReceive["ap_password"],
+														jsonCmdReceive["sta_ssid"],
+														jsonCmdReceive["sta_password"]
+													);
+												}
+												break;
 	case CMD_WIFI_STOP: 	wifiStop();break;
 
 

@@ -151,3 +151,15 @@ arduino-cli compile --fqbn esp32:esp32:esp32 WAVE_ROVER_V0.95 \
 - Yaw (Vertical Axis): This rotation is about the axis that runs vertically through the center of the object. When an object yaws, its nose/front points left or right, changing its horizontal direction.
 
 These three rotations are critical for flight control, robotics, and any system that requires precise movement and orientation in three dimensions.
+
+### Wi‑Fi Config (multiple networks)
+
+/WAVE_ROVER_V0.95/data/wifiConfig.json supports a primary and optional secondary network. You can use legacy keys or the new sta_list form:
+
+- Legacy (single + optional secondary):
+  {"wifi_mode_on_boot":3, "ap_ssid":"UGV", "ap_password":"12345678", "sta_ssid":"NET1", "sta_password":"pass1", "sta2_ssid":"NET2", "sta2_password":"pass2"}
+
+- Recommended (list):
+  {"wifi_mode_on_boot":3, "ap_ssid":"UGV", "ap_password":"12345678", "sta_list":[{"ssid":"NET1","password":"pass1"},{"ssid":"NET2","password":"pass2"}]}
+
+On boot, the rover tries NET1; on timeout it tries NET2; if both fail it falls back to AP mode.

@@ -95,3 +95,6 @@ libraries/
 
 # Crash / log / temp artifacts
 *.log
+
+mydata/
+

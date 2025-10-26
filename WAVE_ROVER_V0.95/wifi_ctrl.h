@@ -21,6 +21,9 @@
 byte WIFI_MODE_ON_BOOT = 1;
 const char* sta_ssid = "none";
 const char* sta_password = "none";
+// Optional secondary STA credentials (fallback)
+const char* sta2_ssid = "none";
+const char* sta2_password = "none";
 const char* ap_ssid = "UGV";
 const char* ap_password = "12345678";
 
@@ -41,7 +44,7 @@ unsigned long connectionStartTime;
 unsigned long connectionTimeout = 15000;
 byte WIFI_CURRENT_MODE = -1;
 IPAddress localIP;
-DynamicJsonDocument wifiDoc(256);
+DynamicJsonDocument wifiDoc(512);
 bool wifiConfigFound = false;
 
 
@@ -49,20 +52,20 @@ bool wifiConfigFound = false;
 void updateOledWifiInfo() {
   switch(WIFI_CURRENT_MODE) {
   case 0: 
-    screenLine_0 = "AP: OFF";
-    screenLine_1 = "ST: OFF";
+    screenLine_0 = "STA: None";
+    screenLine_1 = "AP: OFF";
     break;
   case 1:
-    screenLine_0 = String("AP:") + ap_ssid;
-    screenLine_1 = "ST: OFF";
+    screenLine_0 = "STA: None";
+    screenLine_1 = String("AP:") + ap_ssid;
     break;
   case 2:
-    screenLine_0 = "AP: OFF";
-    screenLine_1 = String("ST:") + localIP.toString();
+    screenLine_0 = String("STA:") + sta_ssid;
+    screenLine_1 = String("IP:") + localIP.toString();
     break;
   case 3:
-    screenLine_0 = String("AP:") + ap_ssid;
-    screenLine_1 = String("ST:") + localIP.toString();
+    screenLine_0 = String("STA:") + sta_ssid;
+    screenLine_1 = String("IP:") + localIP.toString();
     break;
   }
   oled_update();
@@ -83,10 +86,28 @@ bool loadWifiConfig() {
 
 		// read configuration values.
 		WIFI_MODE_ON_BOOT = wifiDoc["wifi_mode_on_boot"];
-		sta_ssid = wifiDoc["sta_ssid"];
-		sta_password = wifiDoc["sta_password"];
 		ap_ssid = wifiDoc["ap_ssid"];
 		ap_password = wifiDoc["ap_password"];
+
+		// Support either single STA, optional secondary STA, or a list 'sta_list'
+		if (wifiDoc.containsKey("sta_list")) {
+			JsonArray arr = wifiDoc["sta_list"].as<JsonArray>();
+			if (arr.size() > 0) {
+				sta_ssid = arr[0]["ssid"] | "none";
+				sta_password = arr[0]["password"] | "none";
+			}
+			if (arr.size() > 1) {
+				sta2_ssid = arr[1]["ssid"]   | "none";
+				sta2_password = arr[1]["password"] | "none";
+			}
+		} else {
+			sta_ssid = wifiDoc["sta_ssid"] | "none";
+			sta_password = wifiDoc["sta_password"] | "none";
+			if (wifiDoc.containsKey("sta2_ssid")) {
+				sta2_ssid = wifiDoc["sta2_ssid"] | "none";
+				sta2_password = wifiDoc["sta2_password"] | "none";
+			}
+		}
 
 		if (InfoPrint == 1) {
 			Serial.println(line);
@@ -95,12 +116,14 @@ bool loadWifiConfig() {
 		wifiConfigYaml.close();
 		wifiConfigFound = true;
 		jsonInfoHttp.clear();
-  	jsonInfoHttp["ip"] = "/wifiConfig.json load succeed.";
- 		jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
- 		jsonInfoHttp["sta_ssid"] = sta_ssid;
- 		jsonInfoHttp["sta_password"] = sta_password;
- 		jsonInfoHttp["ap_ssid"] = ap_ssid;
- 		jsonInfoHttp["ap_password"] = ap_password;
+		jsonInfoHttp["ip"] = "/wifiConfig.json load succeed.";
+		jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
+		jsonInfoHttp["sta_ssid"] = sta_ssid;
+		jsonInfoHttp["sta_password"] = sta_password;
+		jsonInfoHttp["sta2_ssid"] = sta2_ssid;
+		jsonInfoHttp["sta2_password"] = sta2_password;
+		jsonInfoHttp["ap_ssid"] = ap_ssid;
+		jsonInfoHttp["ap_password"] = ap_password;
 		return true;
 
 	} else {
@@ -131,8 +154,16 @@ bool createWifiConfigFileByStatus() {
 	if (WIFI_MODE_ON_BOOT != 0 || WIFI_MODE_ON_BOOT != -1){
 		wifiDoc.clear();
 		wifiDoc["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
-		wifiDoc["sta_ssid"] = sta_ssid;
-		wifiDoc["sta_password"] = sta_password;
+		// prefer list format when saving
+		JsonArray arr = wifiDoc.createNestedArray("sta_list");
+		{
+			JsonObject p = arr.createNestedObject();
+			p["ssid"] = sta_ssid; p["password"] = sta_password;
+		}
+		if (strcmp(sta2_ssid, "none") != 0) {
+			JsonObject s = arr.createNestedObject();
+			s["ssid"] = sta2_ssid; s["password"] = sta2_password;
+		}
 		wifiDoc["ap_ssid"] = ap_ssid;
 		wifiDoc["ap_password"] = ap_password;
 
@@ -206,48 +237,59 @@ bool wifiModeSTA(const char* input_ssid, const char* input_password) {
 
 	if (InfoPrint == 1) {Serial.println("STA mode starts: connecting to ");
 					Serial.println(input_ssid);}
-	while (WiFi.status() != WL_CONNECTED) {
-		unsigned long currentTime = millis();
-		if (InfoPrint == 1) {Serial.print(".");}
-		delay(500);
+    while (WiFi.status() != WL_CONNECTED) {
+        unsigned long currentTime = millis();
+        if (InfoPrint == 1) {Serial.print(".");}
+        delay(500);
 
-		if (currentTime - connectionStartTime >= connectionTimeout) {
-			WIFI_CURRENT_MODE = -1;
-			if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection timeout.");}
-			wifiModeAP(ap_ssid, ap_password);
-			updateOledWifiInfo();
+        if (currentTime - connectionStartTime >= connectionTimeout) {
+            WIFI_CURRENT_MODE = -1;
+            if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection timeout.");}
+            break;
+        }
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+        if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection succeed.");}
+        WIFI_CURRENT_MODE = 2;
+        getIPAddress(WIFI_CURRENT_MODE);
+        sta_ssid = input_ssid;
+        sta_password = input_password;
+        updateOledWifiInfo();
+        return true;
+    }
 
-			jsonInfoHttp.clear();
-			jsonInfoHttp["info"] = "STA connection timeout.";
+    // Try secondary credentials if available
+    if (strcmp(sta2_ssid, "none") != 0) {
+        if (InfoPrint == 1) {Serial.println("Trying secondary STA...");}
+        WiFi.disconnect();
+        WiFi.begin(sta2_ssid, sta2_password);
+        connectionStartTime = millis();
+        while (WiFi.status() != WL_CONNECTED) {
+            unsigned long currentTime = millis();
+            if (InfoPrint == 1) {Serial.print(".");}
+            delay(500);
+            if (currentTime - connectionStartTime >= connectionTimeout) {
+                WIFI_CURRENT_MODE = -1;
+                if (InfoPrint == 1) {Serial.println(".");Serial.println("Secondary STA timeout.");}
+                break;
+            }
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+            if (InfoPrint == 1) {Serial.println("Secondary STA connected.");}
+            WIFI_CURRENT_MODE = 2;
+            getIPAddress(WIFI_CURRENT_MODE);
+            sta_ssid = sta2_ssid; sta_password = sta2_password;
+            updateOledWifiInfo();
+            return true;
+        }
+    }
 
-			return false;
-			break;
-		}
-	}
-
-	if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection succeed.");}
-	WIFI_CURRENT_MODE = 2;
-	getIPAddress(WIFI_CURRENT_MODE);
-	sta_ssid = input_ssid;
-	sta_password = input_password;
-
-	jsonInfoHttp.clear();
-	jsonInfoHttp["info"] = "STA connection succeed.";
-	jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
-	jsonInfoHttp["sta_ssid"] = sta_ssid;
-	jsonInfoHttp["sta_password"] = sta_password;
-	jsonInfoHttp["ap_ssid"] = ap_ssid;
-	jsonInfoHttp["ap_password"] = ap_password;
-
-	if (defaultModeToAPSTA && !wifiConfigFound) {
-		WIFI_MODE_ON_BOOT = 3;
-		if (InfoPrint == 1) {Serial.println("[default] wifi mode on boot: AP+STA");}
-		jsonInfoHttp["info"] = "[default] wifi mode on boot: AP+STA";
-		createWifiConfigFileByStatus();
-	}
-	updateOledWifiInfo();
-
-	return true;
+    // Fallback to AP
+    wifiModeAP(ap_ssid, ap_password);
+    updateOledWifiInfo();
+    jsonInfoHttp.clear();
+    jsonInfoHttp["info"] = "STA connection timeout.";
+    return false;
 }
 
 
@@ -273,46 +315,67 @@ bool wifiModeAPSTA(const char* input_ap_ssid, const char* input_ap_password, con
 
 	if (InfoPrint == 1) {Serial.print("STA/AP+STA mode starts: connecting to ");
 					Serial.println(input_sta_ssid);}
-	while (WiFi.status() != WL_CONNECTED) {
-		unsigned long currentTime = millis();
-		if (InfoPrint == 1) {Serial.print(".");}
-		delay(500);
+    while (WiFi.status() != WL_CONNECTED) {
+        unsigned long currentTime = millis();
+        if (InfoPrint == 1) {Serial.print(".");}
+        delay(500);
 
-		if (currentTime - connectionStartTime >= connectionTimeout) {
-			WIFI_CURRENT_MODE = -1;
-			if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection timeout.");}
-			wifiModeAP(ap_ssid, ap_password);
-			updateOledWifiInfo();
+        if (currentTime - connectionStartTime >= connectionTimeout) {
+            WIFI_CURRENT_MODE = -1;
+            if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection timeout.");}
+            break;
+        }
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+        if (InfoPrint == 1) {Serial.println("STA connection succeed.");}
+        WIFI_CURRENT_MODE = 3;
+        getIPAddress(WIFI_CURRENT_MODE);
+        sta_ssid = input_sta_ssid;
+        sta_password = input_sta_password;
+        if (defaultModeToAPSTA && !wifiConfigFound) {
+            WIFI_MODE_ON_BOOT = 3;
+            if (InfoPrint == 1) {Serial.println("[default] wifi mode on boot: AP+STA");}
+            createWifiConfigFileByStatus();
+        }
+        updateOledWifiInfo();
+        jsonInfoHttp.clear();
+        jsonInfoHttp["info"] = "STA connection succeed.";
+        jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
+        jsonInfoHttp["sta_ssid"] = sta_ssid;
+        jsonInfoHttp["ap_ssid"] = ap_ssid;
+        return true;
+    }
 
-			jsonInfoHttp.clear();
-			jsonInfoHttp["info"] = "STA connection timeout.";
+    // Try secondary credentials
+    if (strcmp(sta2_ssid, "none") != 0) {
+        if (InfoPrint == 1) { Serial.println("Trying secondary STA (AP+STA)..."); }
+        WiFi.begin(sta2_ssid, sta2_password);
+        connectionStartTime = millis();
+        while (WiFi.status() != WL_CONNECTED) {
+            unsigned long currentTime = millis();
+            if (InfoPrint == 1) {Serial.print(".");}
+            delay(500);
+            if (currentTime - connectionStartTime >= connectionTimeout) { break; }
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+            WIFI_CURRENT_MODE = 3;
+            getIPAddress(WIFI_CURRENT_MODE);
+            sta_ssid = sta2_ssid; sta_password = sta2_password;
+            updateOledWifiInfo();
+            jsonInfoHttp.clear();
+            jsonInfoHttp["info"] = "Secondary STA connected.";
+            jsonInfoHttp["sta_ssid"] = sta_ssid;
+            jsonInfoHttp["ap_ssid"] = ap_ssid;
+            return true;
+        }
+    }
 
-			return false;
-			break;
-		}
-	}
-
-	if (InfoPrint == 1) {Serial.println("STA connection succeed.");}
-	WIFI_CURRENT_MODE = 3;
-	getIPAddress(WIFI_CURRENT_MODE);
-	sta_ssid = input_sta_ssid;
-	sta_password = input_sta_password;
-	if (defaultModeToAPSTA && !wifiConfigFound) {
-		WIFI_MODE_ON_BOOT = 3;
-		if (InfoPrint == 1) {Serial.println("[default] wifi mode on boot: AP+STA");}
-		createWifiConfigFileByStatus();
-	}
-	updateOledWifiInfo();
-
-	jsonInfoHttp.clear();
-	jsonInfoHttp["info"] = "STA connection succeed.";
-	jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
-	jsonInfoHttp["sta_ssid"] = sta_ssid;
-	jsonInfoHttp["sta_password"] = sta_password;
-	jsonInfoHttp["ap_ssid"] = ap_ssid;
-	jsonInfoHttp["ap_password"] = ap_password;
-	
-	return true;
+    // Fallback to AP only
+    wifiModeAP(ap_ssid, ap_password);
+    updateOledWifiInfo();
+    jsonInfoHttp.clear();
+    jsonInfoHttp["info"] = "STA connection timeout.";
+    return false;
 }
 
 
@@ -365,13 +428,37 @@ void configWifiModeOnBoot(byte inputMode) {
 // create a wifiConfig.json file
 // from the args input.
 void createWifiConfigFileByInput(byte inputMode, const char* inputApSsid, const char* inputApPassword, const char* inputStaSsid, const char* inputStaPassword) {
-	WIFI_MODE_ON_BOOT = inputMode;
-	wifiModeAPSTA(inputApSsid, inputApPassword, inputStaSsid, inputStaPassword);
-	if (InfoPrint == 1) {
-		Serial.print("wifi_mode_on_boot: ");
-		Serial.println(WIFI_MODE_ON_BOOT);
-	}
-	createWifiConfigFileByStatus();
+    WIFI_MODE_ON_BOOT = inputMode;
+    sta_ssid = inputStaSsid; sta_password = inputStaPassword;
+    // preserve any existing secondary
+    wifiModeAPSTA(inputApSsid, inputApPassword, inputStaSsid, inputStaPassword);
+    if (InfoPrint == 1) {
+        Serial.print("wifi_mode_on_boot: ");
+        Serial.println(WIFI_MODE_ON_BOOT);
+    }
+    createWifiConfigFileByStatus();
+}
+
+// Create config by list (preferred); accepts the first two entries as primary/secondary
+void createWifiConfigFileByInputList(byte inputMode,
+                                    const char* inputApSsid,
+                                    const char* inputApPassword,
+                                    JsonVariant sta_list) {
+    WIFI_MODE_ON_BOOT = inputMode;
+    if (sta_list.is<JsonArray>()) {
+        JsonArray arr = sta_list.as<JsonArray>();
+        if (arr.size() > 0) {
+            sta_ssid = arr[0]["ssid"] | "none";
+            sta_password = arr[0]["password"] | "none";
+        }
+        if (arr.size() > 1) {
+            sta2_ssid = arr[1]["ssid"] | "none";
+            sta2_password = arr[1]["password"] | "none";
+        }
+    }
+    // Try with primary; fallback handled internally
+    wifiModeAPSTA(inputApSsid, inputApPassword, sta_ssid, sta_password);
+    createWifiConfigFileByStatus();
 }
 
 
