@@ -139,9 +139,30 @@ arduino-cli compile --fqbn esp32:esp32:esp32 WAVE_ROVER_V0.95 \
 ### Hardware Docs
 - `Resources/general_driver_board_schematic.png`: Board reference schematic.
 
-### Not Present / Notes
-- LiDAR: Any LiDAR would require an additional module (likely via UART to a PI or Jettson) and corresponding commands.
-- Feature gating: Aside from `ENABLE_ESP_NOW`, modules are always compiled in. If binary size matters for models without the arm/gimbal/OLED/etc., a future step is to add per‑module toggles in `config.h` and wrap includes/logic with `#if` guards.
+## Connectors
+
+White board connectors and suggested mating parts:
+
+- Motor with encoder (A/B), 6‑pin: JST‑PH, 2.0 mm pitch, 6P
+  - Mating: PHR‑6 housing + SPH‑002T‑P0.5S crimp contacts
+- Motor (no encoder), 2‑pin: JST‑PH, 2.0 mm pitch, 2P
+  - Mating: PHR‑2 + SPH‑002T‑P0.5S
+- IIC header, 4‑pin: JST‑PH, 2.0 mm pitch, 4P
+  - Mating: PHR‑4 + SPH‑002T‑P0.5S
+- LiDAR header, 4‑pin (to CP2102N bridge): JST‑PH, 2.0 mm pitch, 4P
+  - Mating: PHR‑4 + SPH‑002T‑P0.5S
+- DC power input (near ON/OFF), 2‑pin: JST‑XH, 2.54 mm pitch, 2P
+  - Mating: XHP‑2 housing + SXH crimp contacts
+- Bus servo rows (D/V/G): standard 2.54 mm pin rows
+  - Use Dupont 3‑pin female housings or servo leads
+- 40‑pin expansion header: standard 2.54 mm
+  - Use Dupont female jumpers/cables
+
+Notes
+- JST‑PH is smaller (2.0 mm) than JST‑XH (2.54 mm). Do not mix families.
+- Pre‑crimp pigtails for JST‑PH/XH are convenient if you don’t want to crimp.
+
+
 
 
 ## Terminology
