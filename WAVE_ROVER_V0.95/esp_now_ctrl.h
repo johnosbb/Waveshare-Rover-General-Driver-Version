@@ -154,6 +154,7 @@ void OnDataRecv(const esp_now_recv_info_t *info,
   // Same switch logic as before
   switch(espNowMegsRecv.cmd) {
     case 0: {
+#if ENABLE_ROBOTIC_ARM
       RoArmM2_allJointAbsCtrl(
         espNowMegsRecv.base,
         espNowMegsRecv.shoulder,
@@ -162,6 +163,7 @@ void OnDataRecv(const esp_now_recv_info_t *info,
         0,
         0
       );
+#endif
       break;
     }
 

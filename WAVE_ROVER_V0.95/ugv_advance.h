@@ -90,7 +90,9 @@ bool appendStepJson(String inputName, String inputStep) {
 // a new step at the end of the mission.
 // using feedback.
 void appendStepFB(String inputName, float inputSpd) {
+#if ENABLE_ROBOTIC_ARM
 	RoArmM2_infoFeedback();
+#endif
 	jsonInfoSend.clear();
 	jsonInfoSend["T"] = 104;
 	jsonInfoSend["x"] = lastX;
@@ -139,7 +141,9 @@ bool insertStepJson(String inputName, int inputStepNum, String inputStep) {
 // insert a new step as the stepNum
 // using the feedback.
 void insertStepFB(String inputName, int inputStepNum, float inputSpd) {
+#if ENABLE_ROBOTIC_ARM
 	RoArmM2_infoFeedback();
+#endif
 	jsonInfoSend.clear();
 	jsonInfoSend["T"] = 104;
 	jsonInfoSend["x"] = lastX;
@@ -188,7 +192,9 @@ bool replaceStepJson(String inputName, int inputStepNum, String inputStep) {
 // replace the cmd at stepNum.
 // using feedback.
 void replaceStepFB(String inputName, int inputStepNum, float inputSpd) {
+#if ENABLE_ROBOTIC_ARM
 	RoArmM2_infoFeedback();
+#endif
 	jsonInfoSend.clear();
 	jsonInfoSend["T"] = 104;
 	jsonInfoSend["x"] = lastX;
@@ -315,10 +321,12 @@ void configEEmodeType(byte inputMode) {
 
 	lastX = goalX;
 	lastY = goalY;
-	lastZ = goalZ;
-	lastT = goalT;
+    lastZ = goalZ;
+    lastT = goalT;
+#if ENABLE_ROBOTIC_ARM
 	RoArmM2_baseCoordinateCtrl(initX, initY, initZ, initT);
 	RoArmM2_goalPosMove();
+#endif
 }
 
 

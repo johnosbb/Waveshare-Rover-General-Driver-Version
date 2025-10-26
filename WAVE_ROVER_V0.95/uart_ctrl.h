@@ -62,11 +62,13 @@ void jsonCmdReceiveHandler(){
 	case CMD_UART_ECHO_MODE:
 												setCmdEcho(
 												jsonCmdReceive["cmd"]);break;
+	#if ENABLE_ROBOTIC_ARM
 	case CMD_ARM_CTRL_UI: RoArmM2_uiCtrl(
 												jsonCmdReceive["E"],
 												jsonCmdReceive["Z"],
 												jsonCmdReceive["R"]
 												);break;
+	#endif
                         
 
 
@@ -124,6 +126,7 @@ void jsonCmdReceiveHandler(){
 
 	// it moves to goal position directly
 	// with interpolation.
+	#if ENABLE_ROBOTIC_ARM
 	case CMD_MOVE_INIT:		RoArmM2_moveInit();break;
 	case CMD_SINGLE_JOINT_CTRL: 
 												RoArmM2_singleJointAbsCtrl(
@@ -228,6 +231,7 @@ void jsonCmdReceiveHandler(){
 												jsonCmdReceive["spd"],
 												jsonCmdReceive["acc"]
 												);break;
+	#endif // ENABLE_ROBOTIC_ARM
 // constant ctrl
 // m: 0 - angle
 //    1 - xyzt
@@ -235,6 +239,7 @@ void jsonCmdReceiveHandler(){
 // 		  1 - increase
 // 		  2 - decrease
 // {"T":123,"m":0,"axis":0,"cmd":0,"spd":0}
+#if ENABLE_ROBOTIC_ARM
 	case CMD_CONSTANT_CTRL:
 												constantCtrl(
 												jsonCmdReceive["m"],
@@ -242,6 +247,7 @@ void jsonCmdReceiveHandler(){
 												jsonCmdReceive["cmd"],
 												jsonCmdReceive["spd"]
 												);break;
+#endif
 
 
 
@@ -368,45 +374,47 @@ void jsonCmdReceiveHandler(){
 
 
 	// esp-now settings.
+#if ENABLE_ESP_NOW
   case CMD_BROADCAST_FOLLOWER:
-  											changeBroadcastMode(
-  											jsonCmdReceive["mode"],
-  											jsonCmdReceive["mac"]
-  											);break;
+ 											changeBroadcastMode(
+ 											jsonCmdReceive["mode"],
+ 											jsonCmdReceive["mac"]
+ 											);break;
   case CMD_ESP_NOW_CONFIG:
-  											changeEspNowMode(
-  											jsonCmdReceive["mode"]
-  											);break;
+ 											changeEspNowMode(
+ 											jsonCmdReceive["mode"]
+ 											);break;
   case CMD_GET_MAC_ADDRESS: 
-  											getThisDevMacAddress();
-  											break;
+ 											getThisDevMacAddress();
+ 											break;
   case CMD_ESP_NOW_ADD_FOLLOWER:
-  											registerNewFollowerToPeer(
-  											jsonCmdReceive["mac"]);break;
+ 											registerNewFollowerToPeer(
+ 											jsonCmdReceive["mac"]);break;
   case CMD_ESP_NOW_REMOVE_FOLLOWER:
-  											deleteFollower(
-  											jsonCmdReceive["mac"]);break;
+ 											deleteFollower(
+ 											jsonCmdReceive["mac"]);break;
   case CMD_ESP_NOW_GROUP_CTRL:
-  											espNowGroupSend(
-  											jsonCmdReceive["dev"],
-  											jsonCmdReceive["b"],
-  											jsonCmdReceive["s"],
-  											jsonCmdReceive["e"],
-  											jsonCmdReceive["h"],
-  											jsonCmdReceive["cmd"],
-  											jsonCmdReceive["megs"]
-  											);break;
+ 											espNowGroupSend(
+ 											jsonCmdReceive["dev"],
+ 											jsonCmdReceive["b"],
+ 											jsonCmdReceive["s"],
+ 											jsonCmdReceive["e"],
+ 											jsonCmdReceive["h"],
+ 											jsonCmdReceive["cmd"],
+ 											jsonCmdReceive["megs"]
+ 											);break;
   case CMD_ESP_NOW_SINGLE:
-  											espNowSingleDevSend(
-  											jsonCmdReceive["mac"],
-  											jsonCmdReceive["dev"],
-  											jsonCmdReceive["b"],
-  											jsonCmdReceive["s"],
-  											jsonCmdReceive["e"],
-  											jsonCmdReceive["h"],
-  											jsonCmdReceive["cmd"],
-  											jsonCmdReceive["megs"]
-  											);break;
+ 											espNowSingleDevSend(
+ 											jsonCmdReceive["mac"],
+ 											jsonCmdReceive["dev"],
+ 											jsonCmdReceive["b"],
+ 											jsonCmdReceive["s"],
+ 											jsonCmdReceive["e"],
+ 											jsonCmdReceive["h"],
+ 											jsonCmdReceive["cmd"],
+ 											jsonCmdReceive["megs"]
+ 											);break;
+#endif
 
 
 
@@ -453,11 +461,13 @@ void jsonCmdReceiveHandler(){
 	case CMD_SET_MIDDLE:  setMiddlePos(
 												jsonCmdReceive["id"]
 												);break;
+#if ENABLE_ROBOTIC_ARM
 	case CMD_SET_SERVO_PID: 
 												setServosPID(
 												jsonCmdReceive["id"],
 												jsonCmdReceive["p"]
 												);break;
+#endif
 
 	// esp-32 dev ctrl.
 	case CMD_REBOOT: 			esp_restart();break;

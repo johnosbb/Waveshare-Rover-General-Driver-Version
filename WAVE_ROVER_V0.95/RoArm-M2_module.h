@@ -166,6 +166,7 @@ void waitMove2Goal(byte InputID, s16 goalPosition, s16 offSet){
 
 
 // initialize bus servo libraris and uart2ttl.
+#if ENABLE_ROBOTIC_ARM
 void RoArmM2_servoInit(){
   Serial1.begin(1000000, SERIAL_8N1, S_RXD, S_TXD);
   st.pSerial = &Serial1;
@@ -398,6 +399,7 @@ void RoArmM2_dynamicAdaptation(byte inputM, int inputB, int inputS, int inputE, 
     RoArmM2_elbowTorqueCtrl(inputE);
     RoArmM2_handTorqueCtrl(inputH);
   }
+
 }
 
 
@@ -1301,3 +1303,5 @@ void constantHandle() {
 //     delay(3);
 //   }
 // }
+
+#endif // ENABLE_ROBOTIC_ARM

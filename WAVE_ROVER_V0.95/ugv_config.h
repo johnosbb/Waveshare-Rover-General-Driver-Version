@@ -1,6 +1,8 @@
 #ifndef UGV_CONFIG_H
 #define UGV_CONFIG_H
 
+#include "config.h"
+
 // the uart used to control servos.
 // GPIO 18 - S_RXD, GPIO 19 - S_TXD, as default.
 #define RoArmM2_Servo_RXD 18
@@ -16,7 +18,11 @@ byte InfoPrint = 1;
 //             1 - flow-leader(group): sending cmds
 //             2 - flow-leader(single): sending cmds to a single follower
 //             3 - [default]follower: recv cmds
+#if ENABLE_ESP_NOW
 byte espNowMode = 3;
+#else
+byte espNowMode = 0;
+#endif
 
 // set the broadcast ctrl mode.
 // broadcast mac address: FF:FF:FF:FF:FF:FF.

@@ -11,7 +11,6 @@ StaticJsonDocument<512> jsonInfoHttp;
 #include <LittleFS.h>
 #include <WiFi.h>
 #include <WebServer.h>
-#include <esp_now.h>
 #include <nvs_flash.h>
 #include <Adafruit_SSD1306.h>
 #include <INA219_WE.h>
@@ -36,7 +35,7 @@ StaticJsonDocument<512> jsonInfoHttp;
 // functions for the leds of UGV.
 #include "ugv_led_ctrl.h"
 
-// functions for RoArm-M2 ctrl.
+// functions for RoArm-M2 ctrl (common bus-servo helpers always available; high-level arm code is feature-gated).
 #include "RoArm-M2_module.h"
 
 // functions for gimbal ctrl.
@@ -61,7 +60,9 @@ StaticJsonDocument<512> jsonInfoHttp;
 #include "wifi_ctrl.h"
 
 // functions for esp-now.
+#if ENABLE_ESP_NOW
 #include "esp_now_ctrl.h"
+#endif
 
 // functions for uart json ctrl.
 #include "uart_ctrl.h"
@@ -70,6 +71,7 @@ StaticJsonDocument<512> jsonInfoHttp;
 #include "http_server.h"
 
 
+#if ENABLE_ROBOTIC_ARM
 void moduleType_RoArmM2() {
   unsigned long curr_time = millis();
   if (curr_time - prev_time >= 10){
@@ -80,15 +82,18 @@ void moduleType_RoArmM2() {
   RoArmM2_getPosByServoFeedback();
   
   // esp-now flow ctrl as a flow-leader.
+#if ENABLE_ESP_NOW
   switch(espNowMode) {
   case 1: espNowGroupDevsFlowCtrl();break;
   case 2: espNowSingleDevFlowCtrl();break;
   }
+#endif
 
   if (InfoPrint == 2) {
     RoArmM2_infoFeedback();
   }
 }
+#endif
 
 
 void moduleType_Gimbal() {
@@ -109,6 +114,14 @@ void setup() {
   // mainType: 1.WAVE ROVER, 2.UGV02, 3.UGV01
   // moduleType: 0.Null, 1.RoArm, 2.PT
   mm_settings(mainType, moduleType);
+
+#if !ENABLE_ROBOTIC_ARM
+  // If the firmware is compiled without robotic arm support, force moduleType away from RoArm.
+  if (moduleType == 1) {
+    moduleType = 0;
+    if (InfoPrint == 1) { Serial.println("Robotic arm disabled at compile time; using moduleType 0."); }
+  }
+#endif
 
   init_oled();
   if (mainType == 1) {
@@ -146,6 +159,7 @@ void setup() {
   if(InfoPrint == 1){Serial.println("Initialize the pins used for 12V-switch ctrl.");}
   movtionPinInit();
 
+#if ENABLE_ROBOTIC_ARM
   // servos power up
   screenLine_2 = screenLine_3;
   screenLine_3 = "Power up the servos";
@@ -189,6 +203,7 @@ void setup() {
   oled_update();
   if(InfoPrint == 1){Serial.println("Reset joint torque to ST_TORQUE_MAX.");}
   RoArmM2_dynamicAdaptation(0, ST_TORQUE_MAX, ST_TORQUE_MAX, ST_TORQUE_MAX, ST_TORQUE_MAX);
+#endif
 
   screenLine_3 = "WiFi init";
   oled_update();
@@ -200,16 +215,22 @@ void setup() {
   if(InfoPrint == 1){Serial.println("http & web init.");}
   initHttpWebServer();
 
+#if ENABLE_ESP_NOW
   screenLine_3 = "ESP-NOW init";
   oled_update();
   if(InfoPrint == 1){Serial.println("ESP-NOW init.");}
   initEspNow();
+#endif
 
   screenLine_3 = "UGV started";
   oled_update();
   if(InfoPrint == 1){Serial.println("UGV started.");}
 
+#if ENABLE_ESP_NOW
   getThisDevMacAddress();
+#else
+  thisMacStr = WiFi.macAddress();
+#endif
 
   updateOledWifiInfo();
 
@@ -217,7 +238,7 @@ void setup() {
 
   pidControllerInit();
 
-  screenLine_2 = String("MAC:") + macToString(thisDevMac);
+  screenLine_2 = String("MAC:") + WiFi.macAddress();
   oled_update();
 
   led_pwm_ctrl(0, 0);
@@ -234,7 +255,9 @@ void loop() {
 
   // read and compute the info of joints.
   switch (moduleType) {
+#if ENABLE_ROBOTIC_ARM
   case 1: moduleType_RoArmM2();break;
+#endif
   case 2: moduleType_Gimbal();break;
   }
 
@@ -255,6 +278,11 @@ void loop() {
   
   oledInfoUpdate();
 
+#include "config.h"
+
+#if ENABLE_ESP_NOW
+#include <esp_now.h>
+#endif
   updateIMUData();
 
   if (baseFeedbackFlow) {
