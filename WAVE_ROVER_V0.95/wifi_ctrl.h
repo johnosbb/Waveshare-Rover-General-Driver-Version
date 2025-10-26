@@ -6,6 +6,8 @@
 // #include <LittleFS.h>
 // #include <WIFI.h>
 // #include <ArduinoJson.h>
+#include "ugv_config.h"
+#include "config.h"
 
 // you need to init Serial.
 // bool InfoPrint = true;
@@ -388,6 +390,22 @@ void wifiStatusFeedback() {
 	jsonInfoHttp["ap_ssid"] = ap_ssid;
 	jsonInfoHttp["ap_password"] = ap_password;
 	jsonInfoHttp["mac"] = thisMacStr;
+
+  // UI feature hints
+  jsonInfoHttp["module"] = moduleType;
+  jsonInfoHttp["gimbal"] = (moduleType == 2);
+
+  bool led_ui = false;
+#if ENABLE_LEDS
+  led_ui = true;
+#endif
+#if ENABLE_USER_UART
+  if (IO4_PIN == USER_UART_RX_PIN || IO4_PIN == USER_UART_TX_PIN ||
+      IO5_PIN == USER_UART_RX_PIN || IO5_PIN == USER_UART_TX_PIN) {
+    led_ui = false; // UART overlaps LED pins; suppress UI
+  }
+#endif
+  jsonInfoHttp["led_ui"] = led_ui;
 }
 
 

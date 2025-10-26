@@ -124,9 +124,9 @@ Notes
 New compile-time toggles for connectivity:
 
 - `ENABLE_ROBOTIC_ARM` (default 0): include/exclude RoArm-M2 code.
-- `ENABLE_ENCODERS` (default 1): when 0, skips encoder init/reads and frees GPIO27/GPIO16.
-- `ENABLE_LEDS` (default 1): enable LED PWM on IO4/IO5. If `ENABLE_USER_UART=1` and pins overlap, conflicting LED pins are auto-disabled at runtime.
-- `ENABLE_USER_UART` (default 0): when 1, initializes `Serial2` with the pins/baud below.
+- `ENABLE_ENCODERS` (default 0): when 0, skips encoder init/reads and frees GPIO27/GPIO16.
+- `ENABLE_LEDS` (default 0): enable LED PWM on IO4/IO5. If `ENABLE_USER_UART=1` and pins overlap, conflicting LED pins are auto-disabled at runtime.
+- `ENABLE_USER_UART` (default 1): when 1, initializes `Serial2` with the pins/baud below.
   - `USER_UART_RX_PIN` (default 4), `USER_UART_TX_PIN` (default 5), `USER_UART_BAUD` (default 115200).
 
 Example Arduino CLI build flags:
@@ -143,18 +143,11 @@ arduino-cli compile --fqbn esp32:esp32:esp32 WAVE_ROVER_V0.95 \
 - LiDAR: Any LiDAR would require an additional module (likely via UART to a PI or Jettson) and corresponding commands.
 - Feature gating: Aside from `ENABLE_ESP_NOW`, modules are always compiled in. If binary size matters for models without the arm/gimbal/OLED/etc., a future step is to add per‑module toggles in `config.h` and wrap includes/logic with `#if` guards.
 
-## Build Flags
 
-Two compile-time toggles live in WAVE_ROVER_V0.95/config.h:
-- ENABLE_ESP_NOW (default 0): set to 1 to include ESP-NOW support.
-- ENABLE_ROBOTIC_ARM (default 0): set to 0 to exclude Robotic Arm (RoArm-M2) code when no arm is installed.
+## Terminology
 
-Behavior when the arm is disabled:
-- Arm initialization and control code are not compiled.
-- If moduleType is set to 1 (arm) at boot, firmware forces moduleType=0 and logs a notice.
+- Roll (Longitudinal Axis): This rotation is about the axis that runs from the nose to the tail of the object. When an aircraft rolls, one wing moves up and the other moves down, which is essential for initiating a turn (banking).
+- Pitch (Lateral Axis): This rotation is about the axis that runs from wingtip to wingtip (or side to side). When an object pitches, the nose moves up (positive pitch, which typically increases altitude) or down (negative pitch, which typically decreases altitude).
+- Yaw (Vertical Axis): This rotation is about the axis that runs vertically through the center of the object. When an object yaws, its nose/front points left or right, changing its horizontal direction.
 
-How to set via Arduino CLI:
-- Arduino-cli compile --fqbn esp32:esp32:esp32 WAVE_ROVER_V0.95 --build-properties build.extra_flags="-DENABLE_ROBOTIC_ARM=0"
-
-Arduino IDE:
-- Edit WAVE_ROVER_V0.95/config.h and set the #define values as needed.
+These three rotations are critical for flight control, robotics, and any system that requires precise movement and orientation in three dimensions.

@@ -16,19 +16,19 @@
 // Enable wheel encoders and PID speed control paths.
 // Set to 0 to free GPIO27/GPIO16 and skip encoder reads and PID compute calls.
 #ifndef ENABLE_ENCODERS
-#define ENABLE_ENCODERS 1
+#define ENABLE_ENCODERS 0
 #endif
 
 // Enable IO4/IO5 LED PWM helpers. If USER UART is enabled and shares IO4/IO5,
 // the LED helpers will automatically skip conflicting pins at runtime.
 #ifndef ENABLE_LEDS
-#define ENABLE_LEDS 1
+#define ENABLE_LEDS 0
 #endif
 
 // Optional user UART (Serial2) for external peripherals/hosts.
 // When enabled, Serial2 is initialized with the pins and baud below.
 #ifndef ENABLE_USER_UART
-#define ENABLE_USER_UART 0
+#define ENABLE_USER_UART 1
 #endif
 
 #ifndef USER_UART_RX_PIN

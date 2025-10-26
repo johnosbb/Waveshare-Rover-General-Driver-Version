@@ -740,6 +740,19 @@ const char index_html[] PROGMEM = R"rawliteral(
                 document.getElementById("IP").innerHTML = jsonResponse.ip;
                 document.getElementById("MAC").innerHTML = jsonResponse.mac;
                 document.getElementById("RSSI").innerHTML = jsonResponse.rssi;
+
+                // Hide/show gimbal controls based on device hints
+                var gimbalEnabled = (jsonResponse.gimbal === true || jsonResponse.gimbal === 1);
+                var idsG = ["device-gimbal-btn_A","device-gimbal-btn_B","device-gimbal-btn_C","device-gimbal-btn_D"];
+                idsG.forEach(function(id){
+                    var el = document.getElementById(id);
+                    if (el) { el.style.display = gimbalEnabled ? "block" : "none"; }
+                });
+
+                // Hide/show LED controls based on device hints
+                var ledEnabled = (jsonResponse.led_ui === true || jsonResponse.led_ui === 1);
+                var ledEl = document.getElementById("device-led-btn");
+                if (ledEl) { ledEl.style.display = ledEnabled ? "block" : "none"; }
             }
         };
         xhttp.open("GET", "js?json=" + jsonString, true);
