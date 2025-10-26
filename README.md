@@ -93,7 +93,7 @@ This repository organizes firmware under `WAVE_ROVER_V0.95/` with the sketch `WA
 - `WAVE_ROVER_V0.95/uart_ctrl.h`: Central JSON dispatcher for all commands from Serial and the `/js` endpoint (drive base, PID, OLED, IMU, Wi‑Fi, ESP‑NOW, missions, arm, gimbal, etc.).
 
 ### Hardware Docs
-- `WAVE_ROVER_V0.95/general_driver_board_schematic.png`: Board reference schematic.
+- `Resources/general_driver_board_schematic.png`: Board reference schematic.
 
 ### Not Present / Notes
 - LiDAR: Any LiDAR would require an additional module (likely via UART to a PI or Jettson) and corresponding commands.

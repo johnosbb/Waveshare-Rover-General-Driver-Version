@@ -4,7 +4,7 @@
 - Firmware lives in `WAVE_ROVER_V0.95/` with the main sketch `WAVE_ROVER_V0.95.ino`.
 - Feature modules are split by header/source pairs (for example: `IMU.h/.cpp`, `wifi_ctrl.h`, `http_server.h`, `ugv_advance.h`). Keep new modules in this folder and include them from the sketch.
 - Web/config assets for LittleFS are under `WAVE_ROVER_V0.95/data/` (for example: `wifiConfig.json`, `devConfig.json`).
-- Hardware docs and images (for example: `general_driver_board_schematic.png`) are kept alongside the firmware.
+- Hardware docs and images (for example: `../Resources/general_driver_board_schematic.png`) are kept alongside the firmware.
 
 ## Build, Upload, and Run
 - Arduino IDE: open `WAVE_ROVER_V0.95/WAVE_ROVER_V0.95.ino`, select your ESP32 board, then Verify/Upload.
