@@ -9,6 +9,43 @@ Main Changes from Waveshare Demo Version
 - Support for ESP-NOW can now be enabled or disabled by setting ENABLE_ESP_NOW (default 0). Set to 1 to include ESP-NOW.
 - The Robotic Arm (RoArm-M2) can be compiled in or out via ENABLE_ROBOTIC_ARM (default 1). Set to 0 to exclude all arm logic for platforms without the arm.
 
+
+## General Driver Board
+
+
+<img width="818" height="422" alt="image" src="https://github.com/user-attachments/assets/a7adb55c-7ae2-4432-b59f-fcfe7c97e77f" />
+
+| No. | Onboard Resources                      | Description                                                                 |
+|-----|----------------------------------------|------------------------------------------------------------------------------|
+| 1   | ESP32-WROOM-32 main controller         | Can be developed with the Arduino IDE                                       |
+| 2   | IPEX1 WiFi connector                   | For connecting the WIFI antenna to increase the wireless communication distance |
+| 3   | LIDAR interface                        | Integrated radar adapter board function                                     |
+| 4   | IIC peripheral expansion interface     | Can be used to connect OLED screens or other IIC sensors                    |
+| 5   | Reset button                           | Press and release to reboot the ESP32                                       |
+| 6   | Download button                        | The ESP32 will enter the download mode when the power is turned on by pressing |
+| 7   | DC-DC 5V voltage regulator circuit     | Power supply for host computers such as Raspberry Pi or Jetson Nano         |
+| 8   | Type-C connector (LIDAR)               | LIDAR data interface                                                        |
+| 9   | Type-C connector (USB)                 | ESP32 UART communication interface, can upload programs for ESP32           |
+| 10  | XH2.54 power port                      | Input DC 7~13V, this interface directly powers the serial bus servo and motor |
+| 11  | INA219                                 | Voltage/current monitoring chip                                             |
+| 12  | Power ON/OFF                           | Switches to control external power supply                                   |
+| 13  | ST3215 serial bus servo interface      | For connecting to ST3215 serial bus servo                                   |
+| 14  | Motor interface PH2.0 6P               | Group B interface for motor with encoder                                    |
+| 15  | Motor interface PH2.0 6P               | Group A interface for motor with encoder                                    |
+| 16  | Motor interface PH2.0 2P               | Group A interface for motor without encoder                                 |
+| 17  | Motor interface PH2.0 2P               | Group B interface for motor without encoder                                 |
+| 18  | AK09918C                               | 3-axis electronic compass                                                   |
+| 19  | QMI8658                                | 6-axis motion sensor                                                        |
+| 20  | TB6612FNG                              | Motor control chip                                                          |
+| 21  | Serial bus servo control circuit       | Can be used to expand multiple ST3215 serial bus servos and obtain servo feedback |
+| 22  | SD card slot                           | Can be used to store logs or WIFI configurations                            |
+| 23  | 40PIN extended header                  | Easy access to Raspberry Pi or Horizon Sunrise X3 Pi                        |
+| 24  | 40PIN extended header                  | Easy to use the pins of the host computer installed on the driver board     |
+| 25  | CP2102                                 | UART to USB for radar data transfer                                         |
+| 26  | CP2102                                 | UART to USB for ESP32 UART communication                                    |
+| 27  | Automatic download circuit             | Upload demos for the ESP32 without pressing the EN and BOOT buttons         |
+
+
 ## Feature Inventory (Functional Blocks)
 
 This repository organizes firmware under `WAVE_ROVER_V0.95/` with the sketch `WAVE_ROVER_V0.95.ino`. Below is a concise inventory of the main functional blocks, the files they live in, and whether they are optional/hardware‑specific.
@@ -73,7 +110,7 @@ Behavior when the arm is disabled:
 - If moduleType is set to 1 (arm) at boot, firmware forces moduleType=0 and logs a notice.
 
 How to set via Arduino CLI:
-- rduino-cli compile --fqbn esp32:esp32:esp32 WAVE_ROVER_V0.95 --build-properties build.extra_flags="-DENABLE_ROBOTIC_ARM=0"
+- Arduino-cli compile --fqbn esp32:esp32:esp32 WAVE_ROVER_V0.95 --build-properties build.extra_flags="-DENABLE_ROBOTIC_ARM=0"
 
 Arduino IDE:
 - Edit WAVE_ROVER_V0.95/config.h and set the #define values as needed.
