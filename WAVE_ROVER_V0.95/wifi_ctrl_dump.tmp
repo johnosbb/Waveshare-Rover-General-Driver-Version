@@ -1,4 +1,4 @@
-// wifi ctrl functions.
+﻿// wifi ctrl functions.
 // you can refer to this website below to upload a config file to ESP32 Flash.
 // https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
 
@@ -79,20 +79,10 @@ bool loadWifiConfig() {
 	if (wifiConfigYaml) {
 		if (InfoPrint == 1) {Serial.println("/wifiConfig.json load succeed.");}
 		
-		// Read entire file (supports multi-line JSON)
-		String content = wifiConfigYaml.readString();
+		String line = wifiConfigYaml.readStringUntil('\n');
 
-		// parse the JSON file using ArduinoJson.
-		DeserializationError err = deserializeJson(wifiDoc, content);
-		if (err) {
-			if (InfoPrint == 1) {
-				Serial.print("wifiConfig.json parse error: ");
-				Serial.println(err.c_str());
-			}
-			wifiConfigYaml.close();
-			wifiConfigFound = false;
-			return false;
-		}
+		// parse the YAML file using ArduinoJson.
+		deserializeJson(wifiDoc, line);
 
 		// read configuration values.
 		WIFI_MODE_ON_BOOT = wifiDoc["wifi_mode_on_boot"];
@@ -119,7 +109,9 @@ bool loadWifiConfig() {
 			}
 		}
 
-		if (InfoPrint == 1) { Serial.println(content); }
+		if (InfoPrint == 1) {
+			Serial.println(line);
+		}
 
 		wifiConfigYaml.close();
 		wifiConfigFound = true;
@@ -357,8 +349,6 @@ bool wifiModeAPSTA(const char* input_ap_ssid, const char* input_ap_password, con
     // Try secondary credentials
     if (strcmp(sta2_ssid, "none") != 0) {
         if (InfoPrint == 1) { Serial.println("Trying secondary STA (AP+STA)..."); }
-        // Disconnect any pending STA attempt; keep AP running
-        WiFi.disconnect();
         WiFi.begin(sta2_ssid, sta2_password);
         connectionStartTime = millis();
         while (WiFi.status() != WL_CONNECTED) {

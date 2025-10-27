@@ -1,0 +1,503 @@
+﻿   1: // wifi ctrl functions.
+   2: // you can refer to this website below to upload a config file to ESP32 Flash.
+   3: // https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
+   4: 
+   5: // libraries:
+   6: // #include <LittleFS.h>
+   7: // #include <WIFI.h>
+   8: // #include <ArduinoJson.h>
+   9: #include "ugv_config.h"
+  10: #include "config.h"
+  11: 
+  12: // you need to init Serial.
+  13: // bool InfoPrint = true;
+  14: 
+  15: // wifi config
+  16: // wifi mode on boot.
+  17: // 0: OFF (you need to use uart-command or upload a new wifiConfig.json to turn it on again)
+  18: // 1: AP (default mode as a brand new product)
+  19: // 2: STA
+  20: // 3: AP+STA (default mode after first wifi connection succeed)
+  21: byte WIFI_MODE_ON_BOOT = 1;
+  22: const char* sta_ssid = "none";
+  23: const char* sta_password = "none";
+  24: // Optional secondary STA credentials (fallback)
+  25: const char* sta2_ssid = "none";
+  26: const char* sta2_password = "none";
+  27: const char* ap_ssid = "UGV";
+  28: const char* ap_password = "12345678";
+  29: 
+  30: // true: change the WIFI_MODE_ON_BOOT to 3 when first STA mode succeed.
+  31: bool defaultModeToAPSTA = true;
+  32: 
+  33: // wifiConfig.yaml example:
+  34: // wifi_mode_on_boot:3
+  35: // sta_ssid:"WIFI_NAME"
+  36: // sta_ssid:"WIFI_PASSWORD"
+  37: // ap_ssid:"WIFI_NAME"
+  38: // ap_ssid:"WIFI_PASSWORD"
+  39: File wifiConfigYaml;
+  40: 
+  41: 
+  42: // other args:
+  43: unsigned long connectionStartTime;
+  44: unsigned long connectionTimeout = 15000;
+  45: byte WIFI_CURRENT_MODE = -1;
+  46: IPAddress localIP;
+  47: DynamicJsonDocument wifiDoc(512);
+  48: bool wifiConfigFound = false;
+  49: 
+  50: 
+  51: // update oled accroding to wifi settings.
+  52: void updateOledWifiInfo() {
+  53:   switch(WIFI_CURRENT_MODE) {
+  54:   case 0: 
+  55:     screenLine_0 = "STA: None";
+  56:     screenLine_1 = "AP: OFF";
+  57:     break;
+  58:   case 1:
+  59:     screenLine_0 = "STA: None";
+  60:     screenLine_1 = String("AP:") + ap_ssid;
+  61:     break;
+  62:   case 2:
+  63:     screenLine_0 = String("STA:") + sta_ssid;
+  64:     screenLine_1 = String("IP:") + localIP.toString();
+  65:     break;
+  66:   case 3:
+  67:     screenLine_0 = String("STA:") + sta_ssid;
+  68:     screenLine_1 = String("IP:") + localIP.toString();
+  69:     break;
+  70:   }
+  71:   oled_update();
+  72: }
+  73: 
+  74: 
+  75: // load the wifiConfig.json form Flash.
+  76: // the file name is wifiConfig.json in root path.
+  77: bool loadWifiConfig() {
+  78: 	wifiConfigYaml = LittleFS.open("/wifiConfig.json", "r");
+  79: 	if (wifiConfigYaml) {
+  80: 		if (InfoPrint == 1) {Serial.println("/wifiConfig.json load succeed.");}
+  81: 		
+  82: 		String line = wifiConfigYaml.readStringUntil('\n');
+  83: 
+  84: 		// parse the YAML file using ArduinoJson.
+  85: 		deserializeJson(wifiDoc, line);
+  86: 
+  87: 		// read configuration values.
+  88: 		WIFI_MODE_ON_BOOT = wifiDoc["wifi_mode_on_boot"];
+  89: 		ap_ssid = wifiDoc["ap_ssid"];
+  90: 		ap_password = wifiDoc["ap_password"];
+  91: 
+  92: 		// Support either single STA, optional secondary STA, or a list 'sta_list'
+  93: 		if (wifiDoc.containsKey("sta_list")) {
+  94: 			JsonArray arr = wifiDoc["sta_list"].as<JsonArray>();
+  95: 			if (arr.size() > 0) {
+  96: 				sta_ssid = arr[0]["ssid"] | "none";
+  97: 				sta_password = arr[0]["password"] | "none";
+  98: 			}
+  99: 			if (arr.size() > 1) {
+ 100: 				sta2_ssid = arr[1]["ssid"]   | "none";
+ 101: 				sta2_password = arr[1]["password"] | "none";
+ 102: 			}
+ 103: 		} else {
+ 104: 			sta_ssid = wifiDoc["sta_ssid"] | "none";
+ 105: 			sta_password = wifiDoc["sta_password"] | "none";
+ 106: 			if (wifiDoc.containsKey("sta2_ssid")) {
+ 107: 				sta2_ssid = wifiDoc["sta2_ssid"] | "none";
+ 108: 				sta2_password = wifiDoc["sta2_password"] | "none";
+ 109: 			}
+ 110: 		}
+ 111: 
+ 112: 		if (InfoPrint == 1) {
+ 113: 			Serial.println(line);
+ 114: 		}
+ 115: 
+ 116: 		wifiConfigYaml.close();
+ 117: 		wifiConfigFound = true;
+ 118: 		jsonInfoHttp.clear();
+ 119: 		jsonInfoHttp["ip"] = "/wifiConfig.json load succeed.";
+ 120: 		jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
+ 121: 		jsonInfoHttp["sta_ssid"] = sta_ssid;
+ 122: 		jsonInfoHttp["sta_password"] = sta_password;
+ 123: 		jsonInfoHttp["sta2_ssid"] = sta2_ssid;
+ 124: 		jsonInfoHttp["sta2_password"] = sta2_password;
+ 125: 		jsonInfoHttp["ap_ssid"] = ap_ssid;
+ 126: 		jsonInfoHttp["ap_password"] = ap_password;
+ 127: 		return true;
+ 128: 
+ 129: 	} else {
+ 130: 		if (InfoPrint == 1) {Serial.println("cound not found wifiConfig.json.");}
+ 131: 		wifiConfigFound = false;
+ 132: 		return false;
+ 133: 	}
+ 134: }
+ 135: 
+ 136: 
+ 137: // get the ip address.
+ 138: IPAddress getIPAddress(byte inputMode) {
+ 139: 	localIP = WiFi.localIP();
+ 140: 	if (InfoPrint == 1) {
+ 141: 		Serial.print("IP: ");
+ 142: 		Serial.println(localIP.toString());
+ 143: 	}
+ 144: 
+ 145: 	jsonInfoHttp.clear();
+ 146:   jsonInfoHttp["ip"] = localIP.toString();
+ 147: 	return localIP;
+ 148: }
+ 149: 
+ 150: 
+ 151: // create a wifiConfig.json file
+ 152: // from the args already be using.
+ 153: bool createWifiConfigFileByStatus() {
+ 154: 	if (WIFI_MODE_ON_BOOT != 0 || WIFI_MODE_ON_BOOT != -1){
+ 155: 		wifiDoc.clear();
+ 156: 		wifiDoc["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
+ 157: 		// prefer list format when saving
+ 158: 		JsonArray arr = wifiDoc.createNestedArray("sta_list");
+ 159: 		{
+ 160: 			JsonObject p = arr.createNestedObject();
+ 161: 			p["ssid"] = sta_ssid; p["password"] = sta_password;
+ 162: 		}
+ 163: 		if (strcmp(sta2_ssid, "none") != 0) {
+ 164: 			JsonObject s = arr.createNestedObject();
+ 165: 			s["ssid"] = sta2_ssid; s["password"] = sta2_password;
+ 166: 		}
+ 167: 		wifiDoc["ap_ssid"] = ap_ssid;
+ 168: 		wifiDoc["ap_password"] = ap_password;
+ 169: 
+ 170: 		File configFile = LittleFS.open("/wifiConfig.json", "w");
+ 171: 		if (configFile) {
+ 172: 			serializeJson(wifiDoc, configFile);
+ 173: 			configFile.close();
+ 174: 			if (InfoPrint == 1) {
+ 175: 				Serial.println("/wifiConfig.json created.");
+ 176: 			}
+ 177: 			jsonInfoHttp.clear();
+ 178:   		jsonInfoHttp["info"] = "/wifiConfig.json created.";
+ 179: 			jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
+ 180: 			jsonInfoHttp["sta_ssid"] = sta_ssid;
+ 181: 			jsonInfoHttp["sta_password"] = sta_password;
+ 182: 			jsonInfoHttp["ap_ssid"] = ap_ssid;
+ 183: 			jsonInfoHttp["ap_password"] = ap_password;
+ 184: 			return true;
+ 185: 		} else {
+ 186: 			jsonInfoHttp.clear();
+ 187:   		jsonInfoHttp["info"] = "/wifiConfig.json open failed.";
+ 188: 			return false;
+ 189: 		}
+ 190: 	} else {
+ 191: 		jsonInfoHttp.clear();
+ 192:   	jsonInfoHttp["info"] = "not for this wifi_mode_on_boot.";
+ 193: 		return false;
+ 194: 	}
+ 195: }
+ 196: 
+ 197: 
+ 198: // set wifi as AP mode.
+ 199: bool wifiModeAP(const char* input_ssid, const char* input_password) {
+ 200: 	WiFi.disconnect();
+ 201: 	if (InfoPrint == 1) {Serial.println("wifi mode on boot: AP");}
+ 202: 	// WiFi.mode(WIFI_AP);
+ 203: 	WiFi.mode(WIFI_AP_STA);
+ 204: 	WiFi.softAP(input_ssid, input_password);
+ 205: 	if (InfoPrint == 1) {
+ 206: 		Serial.println("AP mode starts...");
+ 207: 		Serial.print("SSID: ");
+ 208: 		Serial.println(input_ssid);
+ 209: 		Serial.print("Password: ");
+ 210: 		Serial.println(input_password);
+ 211: 		Serial.println("AP Address: 192.168.4.1");
+ 212: 	}
+ 213: 	WIFI_CURRENT_MODE = 1;
+ 214: 	localIP = WiFi.localIP();
+ 215: 	ap_ssid = input_ssid;
+ 216: 	ap_password = input_password;
+ 217: 
+ 218: 	updateOledWifiInfo();
+ 219: 
+ 220: 	jsonInfoHttp.clear();
+ 221:   jsonInfoHttp["info"] = "AP mode starts";
+ 222:   jsonInfoHttp["ap_ssid"] = ap_ssid;
+ 223:   jsonInfoHttp["ap_password"] = ap_password;
+ 224: 
+ 225: 	return true;
+ 226: }
+ 227: 
+ 228: 
+ 229: // set wifi as STA mode.
+ 230: bool wifiModeSTA(const char* input_ssid, const char* input_password) {
+ 231: 	WiFi.disconnect();
+ 232: 	if (InfoPrint == 1) {Serial.println("wifi mode on boot: STA");}
+ 233: 	// WiFi.mode(WIFI_STA);
+ 234: 	WiFi.mode(WIFI_AP_STA);
+ 235: 	WiFi.begin(input_ssid, input_password);
+ 236: 	connectionStartTime = millis();
+ 237: 
+ 238: 	if (InfoPrint == 1) {Serial.println("STA mode starts: connecting to ");
+ 239: 					Serial.println(input_ssid);}
+ 240:     while (WiFi.status() != WL_CONNECTED) {
+ 241:         unsigned long currentTime = millis();
+ 242:         if (InfoPrint == 1) {Serial.print(".");}
+ 243:         delay(500);
+ 244: 
+ 245:         if (currentTime - connectionStartTime >= connectionTimeout) {
+ 246:             WIFI_CURRENT_MODE = -1;
+ 247:             if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection timeout.");}
+ 248:             break;
+ 249:         }
+ 250:     }
+ 251:     if (WiFi.status() == WL_CONNECTED) {
+ 252:         if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection succeed.");}
+ 253:         WIFI_CURRENT_MODE = 2;
+ 254:         getIPAddress(WIFI_CURRENT_MODE);
+ 255:         sta_ssid = input_ssid;
+ 256:         sta_password = input_password;
+ 257:         updateOledWifiInfo();
+ 258:         return true;
+ 259:     }
+ 260: 
+ 261:     // Try secondary credentials if available
+ 262:     if (strcmp(sta2_ssid, "none") != 0) {
+ 263:         if (InfoPrint == 1) {Serial.println("Trying secondary STA...");}
+ 264:         WiFi.disconnect();
+ 265:         WiFi.begin(sta2_ssid, sta2_password);
+ 266:         connectionStartTime = millis();
+ 267:         while (WiFi.status() != WL_CONNECTED) {
+ 268:             unsigned long currentTime = millis();
+ 269:             if (InfoPrint == 1) {Serial.print(".");}
+ 270:             delay(500);
+ 271:             if (currentTime - connectionStartTime >= connectionTimeout) {
+ 272:                 WIFI_CURRENT_MODE = -1;
+ 273:                 if (InfoPrint == 1) {Serial.println(".");Serial.println("Secondary STA timeout.");}
+ 274:                 break;
+ 275:             }
+ 276:         }
+ 277:         if (WiFi.status() == WL_CONNECTED) {
+ 278:             if (InfoPrint == 1) {Serial.println("Secondary STA connected.");}
+ 279:             WIFI_CURRENT_MODE = 2;
+ 280:             getIPAddress(WIFI_CURRENT_MODE);
+ 281:             sta_ssid = sta2_ssid; sta_password = sta2_password;
+ 282:             updateOledWifiInfo();
+ 283:             return true;
+ 284:         }
+ 285:     }
+ 286: 
+ 287:     // Fallback to AP
+ 288:     wifiModeAP(ap_ssid, ap_password);
+ 289:     updateOledWifiInfo();
+ 290:     jsonInfoHttp.clear();
+ 291:     jsonInfoHttp["info"] = "STA connection timeout.";
+ 292:     return false;
+ 293: }
+ 294: 
+ 295: 
+ 296: // set wifi as AP+STA mode.
+ 297: bool wifiModeAPSTA(const char* input_ap_ssid, const char* input_ap_password, const char* input_sta_ssid, const char* input_sta_password) {
+ 298: 	WiFi.disconnect();
+ 299: 	if (InfoPrint == 1) {Serial.println("wifi mode on boot: AP+STA");}
+ 300: 	WiFi.mode(WIFI_AP_STA);
+ 301: 	WiFi.softAP(input_ap_ssid, input_ap_password);
+ 302: 	if (InfoPrint == 1) {
+ 303: 		Serial.println("AP/AP+STA mode starts...");
+ 304: 		Serial.print("AP SSID: ");
+ 305: 		Serial.println(input_ap_ssid);
+ 306: 		Serial.print("AP Password: ");
+ 307: 		Serial.println(input_ap_password);
+ 308: 		Serial.println("AP Address: 192.168.4.1");
+ 309: 	}
+ 310: 	ap_ssid = input_ap_ssid;
+ 311: 	ap_password = input_ap_password;
+ 312: 	
+ 313: 	WiFi.begin(input_sta_ssid, input_sta_password);
+ 314: 	connectionStartTime = millis();
+ 315: 
+ 316: 	if (InfoPrint == 1) {Serial.print("STA/AP+STA mode starts: connecting to ");
+ 317: 					Serial.println(input_sta_ssid);}
+ 318:     while (WiFi.status() != WL_CONNECTED) {
+ 319:         unsigned long currentTime = millis();
+ 320:         if (InfoPrint == 1) {Serial.print(".");}
+ 321:         delay(500);
+ 322: 
+ 323:         if (currentTime - connectionStartTime >= connectionTimeout) {
+ 324:             WIFI_CURRENT_MODE = -1;
+ 325:             if (InfoPrint == 1) {Serial.println(".");Serial.println("STA connection timeout.");}
+ 326:             break;
+ 327:         }
+ 328:     }
+ 329:     if (WiFi.status() == WL_CONNECTED) {
+ 330:         if (InfoPrint == 1) {Serial.println("STA connection succeed.");}
+ 331:         WIFI_CURRENT_MODE = 3;
+ 332:         getIPAddress(WIFI_CURRENT_MODE);
+ 333:         sta_ssid = input_sta_ssid;
+ 334:         sta_password = input_sta_password;
+ 335:         if (defaultModeToAPSTA && !wifiConfigFound) {
+ 336:             WIFI_MODE_ON_BOOT = 3;
+ 337:             if (InfoPrint == 1) {Serial.println("[default] wifi mode on boot: AP+STA");}
+ 338:             createWifiConfigFileByStatus();
+ 339:         }
+ 340:         updateOledWifiInfo();
+ 341:         jsonInfoHttp.clear();
+ 342:         jsonInfoHttp["info"] = "STA connection succeed.";
+ 343:         jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
+ 344:         jsonInfoHttp["sta_ssid"] = sta_ssid;
+ 345:         jsonInfoHttp["ap_ssid"] = ap_ssid;
+ 346:         return true;
+ 347:     }
+ 348: 
+ 349:     // Try secondary credentials
+ 350:     if (strcmp(sta2_ssid, "none") != 0) {
+ 351:         if (InfoPrint == 1) { Serial.println("Trying secondary STA (AP+STA)..."); }
+ 352:         WiFi.begin(sta2_ssid, sta2_password);
+ 353:         connectionStartTime = millis();
+ 354:         while (WiFi.status() != WL_CONNECTED) {
+ 355:             unsigned long currentTime = millis();
+ 356:             if (InfoPrint == 1) {Serial.print(".");}
+ 357:             delay(500);
+ 358:             if (currentTime - connectionStartTime >= connectionTimeout) { break; }
+ 359:         }
+ 360:         if (WiFi.status() == WL_CONNECTED) {
+ 361:             WIFI_CURRENT_MODE = 3;
+ 362:             getIPAddress(WIFI_CURRENT_MODE);
+ 363:             sta_ssid = sta2_ssid; sta_password = sta2_password;
+ 364:             updateOledWifiInfo();
+ 365:             jsonInfoHttp.clear();
+ 366:             jsonInfoHttp["info"] = "Secondary STA connected.";
+ 367:             jsonInfoHttp["sta_ssid"] = sta_ssid;
+ 368:             jsonInfoHttp["ap_ssid"] = ap_ssid;
+ 369:             return true;
+ 370:         }
+ 371:     }
+ 372: 
+ 373:     // Fallback to AP only
+ 374:     wifiModeAP(ap_ssid, ap_password);
+ 375:     updateOledWifiInfo();
+ 376:     jsonInfoHttp.clear();
+ 377:     jsonInfoHttp["info"] = "STA connection timeout.";
+ 378:     return false;
+ 379: }
+ 380: 
+ 381: 
+ 382: // disconnect wifi.
+ 383: void wifiStop() {
+ 384: 	WiFi.disconnect();
+ 385: 	WIFI_CURRENT_MODE = 0;
+ 386: 	WiFi.mode(WIFI_AP_STA);
+ 387: 	updateOledWifiInfo();
+ 388: }
+ 389: 
+ 390: 
+ 391: // wifi mode on boot starts.
+ 392: bool wifiModeOnBoot() {
+ 393: 	bool funcStatus = false;
+ 394: 	switch(WIFI_MODE_ON_BOOT) {
+ 395: 	case 0: 
+ 396: 		if (InfoPrint == 1) {
+ 397: 			Serial.println("wifi mode on boot: OFF");
+ 398: 		}
+ 399: 		funcStatus = true;
+ 400: 		WIFI_CURRENT_MODE = 0;
+ 401: 		WiFi.mode(WIFI_AP_STA);
+ 402: 		break;
+ 403: 	case 1:
+ 404: 		funcStatus = wifiModeAP(ap_ssid, ap_password);
+ 405: 		break;
+ 406: 	case 2:
+ 407: 		funcStatus = wifiModeSTA(sta_ssid, sta_password);
+ 408: 		break;
+ 409: 	case 3:
+ 410: 		funcStatus = wifiModeAPSTA(ap_ssid, ap_password, sta_ssid, sta_password);
+ 411: 		break;
+ 412: 	}
+ 413: 	return funcStatus;
+ 414: }
+ 415: 
+ 416: 
+ 417: // change the WIFI_MODE_ON_BOOT.
+ 418: void configWifiModeOnBoot(byte inputMode) {
+ 419: 	WIFI_MODE_ON_BOOT = inputMode;
+ 420: 	if (InfoPrint == 1) {
+ 421: 		Serial.print("wifi_mode_on_boot: ");
+ 422: 		Serial.println(WIFI_MODE_ON_BOOT);
+ 423: 	}
+ 424: 	createWifiConfigFileByStatus();
+ 425: }
+ 426: 
+ 427: 
+ 428: // create a wifiConfig.json file
+ 429: // from the args input.
+ 430: void createWifiConfigFileByInput(byte inputMode, const char* inputApSsid, const char* inputApPassword, const char* inputStaSsid, const char* inputStaPassword) {
+ 431:     WIFI_MODE_ON_BOOT = inputMode;
+ 432:     sta_ssid = inputStaSsid; sta_password = inputStaPassword;
+ 433:     // preserve any existing secondary
+ 434:     wifiModeAPSTA(inputApSsid, inputApPassword, inputStaSsid, inputStaPassword);
+ 435:     if (InfoPrint == 1) {
+ 436:         Serial.print("wifi_mode_on_boot: ");
+ 437:         Serial.println(WIFI_MODE_ON_BOOT);
+ 438:     }
+ 439:     createWifiConfigFileByStatus();
+ 440: }
+ 441: 
+ 442: // Create config by list (preferred); accepts the first two entries as primary/secondary
+ 443: void createWifiConfigFileByInputList(byte inputMode,
+ 444:                                     const char* inputApSsid,
+ 445:                                     const char* inputApPassword,
+ 446:                                     JsonVariant sta_list) {
+ 447:     WIFI_MODE_ON_BOOT = inputMode;
+ 448:     if (sta_list.is<JsonArray>()) {
+ 449:         JsonArray arr = sta_list.as<JsonArray>();
+ 450:         if (arr.size() > 0) {
+ 451:             sta_ssid = arr[0]["ssid"] | "none";
+ 452:             sta_password = arr[0]["password"] | "none";
+ 453:         }
+ 454:         if (arr.size() > 1) {
+ 455:             sta2_ssid = arr[1]["ssid"] | "none";
+ 456:             sta2_password = arr[1]["password"] | "none";
+ 457:         }
+ 458:     }
+ 459:     // Try with primary; fallback handled internally
+ 460:     wifiModeAPSTA(inputApSsid, inputApPassword, sta_ssid, sta_password);
+ 461:     createWifiConfigFileByStatus();
+ 462: }
+ 463: 
+ 464: 
+ 465: // wifi information feedback.
+ 466: void wifiStatusFeedback() {
+ 467: 	wifiDoc["ip"] = localIP.toString();
+ 468: 	wifiDoc["rssi"] = WiFi.RSSI();
+ 469: 	serializeJson(wifiDoc, Serial);
+ 470: 
+ 471: 	jsonInfoHttp.clear();
+ 472: 	jsonInfoHttp["ip"] = wifiDoc["ip"];
+ 473: 	jsonInfoHttp["rssi"] = wifiDoc["rssi"];
+ 474: 	jsonInfoHttp["wifi_mode_on_boot"] = WIFI_MODE_ON_BOOT;
+ 475: 	jsonInfoHttp["sta_ssid"] = sta_ssid;
+ 476: 	jsonInfoHttp["sta_password"] = sta_password;
+ 477: 	jsonInfoHttp["ap_ssid"] = ap_ssid;
+ 478: 	jsonInfoHttp["ap_password"] = ap_password;
+ 479: 	jsonInfoHttp["mac"] = thisMacStr;
+ 480: 
+ 481:   // UI feature hints
+ 482:   jsonInfoHttp["module"] = moduleType;
+ 483:   jsonInfoHttp["gimbal"] = (moduleType == 2);
+ 484: 
+ 485:   bool led_ui = false;
+ 486: #if ENABLE_LEDS
+ 487:   led_ui = true;
+ 488: #endif
+ 489: #if ENABLE_USER_UART
+ 490:   if (IO4_PIN == USER_UART_RX_PIN || IO4_PIN == USER_UART_TX_PIN ||
+ 491:       IO5_PIN == USER_UART_RX_PIN || IO5_PIN == USER_UART_TX_PIN) {
+ 492:     led_ui = false; // UART overlaps LED pins; suppress UI
+ 493:   }
+ 494: #endif
+ 495:   jsonInfoHttp["led_ui"] = led_ui;
+ 496: }
+ 497: 
+ 498: 
+ 499: // wifi init.
+ 500: void initWifi() {
+ 501: 	loadWifiConfig();
+ 502: 	wifiModeOnBoot();
+ 503: }

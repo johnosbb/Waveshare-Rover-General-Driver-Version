@@ -1,6 +1,8 @@
 # Waveshare-Rover-General-Driver-Version-
 This is an updated vserion of the demo code for the waveshare rover.  The current version from waveshare uses depreciated libraries and was not compatible with the ESP32 core version 3.X
 
+## Changes
+
 Main Changes from Waveshare Demo Version
 
 - The original code used the ESP-NOW callback style from older ESP32 cores. This has been modified for compatibility with core 3.x / ESP-IDF 5.x.
