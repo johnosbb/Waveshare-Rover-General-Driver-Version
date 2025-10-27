@@ -384,6 +384,51 @@ const char index_html[] PROGMEM = R"rawliteral(
                 </div>
             </div>
         </section>
+
+        <!-- WiFi Config editor (multi-network) -->
+        <section>
+            <div>
+                <h2 class="h2-tt">WiFi Config</h2>
+            </div>
+            <div class="info-box" style="padding:20px; max-width:960px; margin:auto;">
+                <div class="feedb-p" style="gap:16px; flex-wrap:wrap;">
+                    <div class="fb-input-info" style="min-width:260px;">
+                        <span>AP SSID</span>
+                        <input id="apSsid" placeholder="UGV" />
+                    </div>
+                    <div class="fb-input-info" style="min-width:260px;">
+                        <span>AP Password</span>
+                        <input id="apPwd" placeholder="12345678" />
+                    </div>
+                </div>
+                <div class="feedb-p" style="gap:16px; flex-wrap:wrap;">
+                    <div class="fb-input-info" style="min-width:260px;">
+                        <span>STA1 SSID</span>
+                        <input id="sta1Ssid" placeholder="primary SSID" />
+                    </div>
+                    <div class="fb-input-info" style="min-width:260px;">
+                        <span>STA1 Password</span>
+                        <input id="sta1Pwd" placeholder="primary password" />
+                    </div>
+                </div>
+                <div class="feedb-p" style="gap:16px; flex-wrap:wrap;">
+                    <div class="fb-input-info" style="min-width:260px;">
+                        <span>STA2 SSID (optional)</span>
+                        <input id="sta2Ssid" placeholder="secondary SSID" />
+                    </div>
+                    <div class="fb-input-info" style="min-width:260px;">
+                        <span>STA2 Password</span>
+                        <input id="sta2Pwd" placeholder="secondary password" />
+                    </div>
+                </div>
+                <div style="padding:10px;">
+                    <button class="small-btn" onclick="saveWifiConfig();">Save & Apply (AP+STA)</button>
+                </div>
+                <div class="fb-info">
+                    <span id="wifiSaveMsg"></span>
+                </div>
+            </div>
+        </section>
         <section>
             <div class="fb-info">
                 <h2 class="h2-tt" id="deviceInfo">Feedback infomation</h2>
@@ -768,6 +813,31 @@ const char index_html[] PROGMEM = R"rawliteral(
         };
         xhttp.open("GET", "js?json=" + jsonString, true);
         xhttp.send();
+    }
+
+    function saveWifiConfig(){
+        var apS = document.getElementById('apSsid').value || 'UGV';
+        var apP = document.getElementById('apPwd').value || '12345678';
+        var s1S = document.getElementById('sta1Ssid').value || '';
+        var s1P = document.getElementById('sta1Pwd').value || '';
+        var s2S = document.getElementById('sta2Ssid').value || '';
+        var s2P = document.getElementById('sta2Pwd').value || '';
+
+        var payload = { T:407, mode:3, ap_ssid: apS, ap_password: apP };
+        var arr = [];
+        if (s1S.length > 0) { arr.push({ssid:s1S, password:s1P}); }
+        if (s2S.length > 0) { arr.push({ssid:s2S, password:s2P}); }
+        if (arr.length > 0) { payload.sta_list = arr; }
+
+        var jsonString = JSON.stringify(payload);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function(){
+            if (this.readyState == 4) {
+                document.getElementById('wifiSaveMsg').innerHTML = (this.status==200? 'Saved. Reconnecting...' : 'Save failed');
+            }
+        }
+        xhr.open("GET", "js?json=" + jsonString, true);
+        xhr.send();
     }
     function changeSpeed(inputSpd) {
         speed_rate = inputSpd;

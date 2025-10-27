@@ -10,6 +10,17 @@ Main Changes from Waveshare Demo Version
 - The original code was written for the ESP32 Arduino core 2.x using the old LEDC API. In core 3.x ledcSetup and ledcAttachPin were removed. Channel-based control was replaced with a pin-based API. The code is now compatible with that.
 - Support for ESP-NOW can now be enabled or disabled by setting ENABLE_ESP_NOW (default 0). Set to 1 to include ESP-NOW.
 - The Robotic Arm (RoArm-M2) can be compiled in or out via ENABLE_ROBOTIC_ARM (default 1). Set to 0 to exclude all arm logic for platforms without the arm.
+- Wi‑Fi multi‑network fallback: wifiConfig.json supports a primary/secondary via `sta_list`; on boot AP+STA tries NET1 then NET2 then falls back to AP.
+- Web UI improvements:
+  - Full‑width status bar showing SSID, IP and MAC.
+  - Web form to edit AP SSID/PW and two STA networks; saves via `CMD_WIFI_CONFIG_CREATE_BY_INPUT` with `sta_list`.
+  - SSID shown in the UI; SSID/IP shown on OLED (line 1/2).
+- New build flags in `config.h`:
+  - `ENABLE_USER_UART` (default 1) with `USER_UART_RX_PIN`/`USER_UART_TX_PIN` (default 4/5) to bring up `Serial2`.
+  - `ENABLE_ENCODERS` (default 0) to disable encoder inputs + PID compute and free GPIO27/GPIO16.
+  - `ENABLE_LEDS` (default 0) to enable IO4/IO5 PWM; auto‑disables if pins overlap the user UART.
+- Web UI auto‑hides gimbal controls (when not in gimbal mode) and IO4/IO5 LED block (when disabled or overlapped by UART).
+- Connectivity documentation and connectors section added to README.
 
 
 ## General Driver Board
